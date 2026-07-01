@@ -1,3 +1,4 @@
+import update from 'immutability-helper';
 import { id } from './id';
 import toolbarButtons from './toolbarButtons';
 import initToolGroups from './initToolGroups';
@@ -7,7 +8,7 @@ export * from './toolbarButtons';
 
 function modeFactory({ modeConfiguration }) {
   const _unsubscriptions = [];
-  return {
+  let modeInstance = {
     /**
      * Mode ID, which should be unique among modes used by the viewer. This ID
      * is used to identify the mode in the viewer's state.
@@ -238,6 +239,12 @@ function modeFactory({ modeConfiguration }) {
     /** SopClassHandlers used by the mode */
     sopClassHandlers: [ohif.sopClassHandler, segmentation.sopClassHandler, dicomRT.sopClassHandler],
   };
+
+  if (modeConfiguration) {
+    modeInstance = update(modeInstance, modeConfiguration);
+  }
+
+  return modeInstance;
 }
 
 const mode = {

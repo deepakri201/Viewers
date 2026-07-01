@@ -1,4 +1,4 @@
-import i18n from 'i18next';
+import update from 'immutability-helper';
 import { id } from './id';
 import initToolGroups from './initToolGroups';
 import toolbarButtons from './toolbarButtons';
@@ -77,12 +77,12 @@ const extensionDependencies = {
 
 function modeFactory({ modeConfiguration }) {
   let _activatePanelTriggersSubscriptions = [];
-  return {
+  let modeInstance = {
     // TODO: We're using this as a route segment
     // We should not be.
     id,
     routeName: 'usAnnotation',
-    displayName: i18n.t('US Pleura B-line Annotations'),
+    displayName: 'US Pleura B-line Annotations',
     /**
      * Lifecycle hooks
      */
@@ -300,11 +300,19 @@ function modeFactory({ modeConfiguration }) {
     },
 
     isValidMode: function ({ modalities }) {
-      const modalities_list = modalities.split('\\');
+      const modalities_list = String(modalities || '')
+        .split('\\')
+        .map(modality => modality.trim())
+        .filter(Boolean);
+
+      const hasUltrasound = modalities_list.some(
+        modality => modality.toUpperCase() === 'US'
+      );
 
       return {
-        valid: modalities_list.includes('US'),
-        description: 'Pleura b-lines annotation mode when the study involves US modality series',
+        valid: hasUltrasound,
+        description:
+          'Pleura b-lines annotation mode when the study includes ultrasound (US) series',
       };
     },
     routes: [
@@ -375,8 +383,13 @@ function modeFactory({ modeConfiguration }) {
       dicomsr.sopClassHandler,
       dicomRT.sopClassHandler,
     ],
-    ...modeConfiguration,
   };
+
+  if (modeConfiguration) {
+    modeInstance = update(modeInstance, modeConfiguration);
+  }
+
+  return modeInstance;
 }
 
 const mode = {
