@@ -13,7 +13,7 @@ window.config = {
       // ~ REQUIRED
       // Authorization Server URL
       authority: 'https://accounts.google.com',
-      client_id: '723928408739-k9k9r3i44j32rhu69vlnibipmmk9i57p.apps.googleusercontent.com',
+      client_id: '907949205650-opnnsmrbijf05jcs3m01ldb3mt38dje2.apps.googleusercontent.com',
       redirect_uri: '/callback',
       response_type: 'id_token token',
       scope:
@@ -38,11 +38,11 @@ window.config = {
         friendlyName: 'dcmjs DICOMWeb Server',
         name: 'GCP',
         wadoUriRoot:
-          'https://healthcare.googleapis.com/v1/projects/ohif-cloud-healthcare/locations/us-east4/datasets/ohif-qa-dataset/dicomStores/ohif-qa-2/dicomWeb',
+          'https://healthcare.googleapis.com/v1/projects/bwh-bwh-pocus-dev-1772056802/locations/us-central1/datasets/deepa_ohif/dicomStores/dicom/dicomWeb',
         qidoRoot:
-          'https://healthcare.googleapis.com/v1/projects/ohif-cloud-healthcare/locations/us-east4/datasets/ohif-qa-dataset/dicomStores/ohif-qa-2/dicomWeb',
+          'https://healthcare.googleapis.com/v1/projects/bwh-bwh-pocus-dev-1772056802/locations/us-central1/datasets/deepa_ohif/dicomStores/dicom/dicomWeb',
         wadoRoot:
-          'https://healthcare.googleapis.com/v1/projects/ohif-cloud-healthcare/locations/us-east4/datasets/ohif-qa-dataset/dicomStores/ohif-qa-2/dicomWeb',
+          'https://healthcare.googleapis.com/v1/projects/bwh-bwh-pocus-dev-1772056802/locations/us-central1/datasets/deepa_ohif/dicomStores/dicom/dicomWeb',
         qidoSupportsIncludeField: true,
         imageRendering: 'wadors',
         thumbnailRendering: 'rendered',
@@ -51,6 +51,7 @@ window.config = {
         supportsFuzzyMatching: true,
         supportsWildcard: false,
         dicomUploadEnabled: true,
+        supportsStow: true,
         omitQuotationForMultipartRequest: true,
         configurationAPI: 'ohif.dataSourceConfigurationAPI.google',
       },

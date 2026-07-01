@@ -123,6 +123,10 @@ export default function USAnnotationPanel() {
     commandsManager.runCommand('downloadJSON', { labels, imageIds: imageIdsToObserve });
   };
 
+  const saveSR = () => {
+    commandsManager.runCommand('saveLUSReportToDatastore', { imageIds: imageIdsToObserve });
+  };
+
   /**
    * Adds the current image ID to the list of monitored image IDs
    * Only works when auto-add is disabled
@@ -288,6 +292,10 @@ export default function USAnnotationPanel() {
           <Button variant="ghost" onClick={() => downloadJSON()}>
             <Icons.Download className="h-5 w-5" />
             <span>{t('JSON')}</span>
+          </Button>
+          <Button variant="ghost" onClick={() => saveSR()}>
+            <Icons.Add className="h-5 w-5" />
+            <span>{t('Save SR')}</span>
           </Button>
           <Button variant="ghost" onClick={() => setShowOverlayCommand(!showOverlay)}>
             {showOverlay ? <Icons.Hide className="h-5 w-5" /> : <Icons.Show className="h-5 w-5" />}

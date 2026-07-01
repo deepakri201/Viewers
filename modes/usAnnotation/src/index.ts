@@ -4,6 +4,7 @@ import initToolGroups from './initToolGroups';
 import toolbarButtons from './toolbarButtons';
 import { UltrasoundPleuraBLineTool } from '@cornerstonejs/tools';
 import { showPercentage } from '../../../extensions/usAnnotation/src/PleuraBlinePercentage';
+import { LUS_SR_CODING_VALUES } from '../../../extensions/usAnnotation/src/sr/lusSRConstants';
 
 const ohif = {
   layout: '@ohif/extension-default.layoutTemplateModule.viewerLayout',
@@ -186,6 +187,9 @@ function modeFactory({ modeConfiguration }) {
           },
           autoCineModalities: {
             $set: [],
+          },
+          codingValues: {
+            $merge: LUS_SR_CODING_VALUES,
           },
           'ohif.hotkeyBindings': {
             $push: [

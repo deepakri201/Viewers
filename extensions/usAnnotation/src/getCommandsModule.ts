@@ -1,8 +1,12 @@
 import { UltrasoundPleuraBLineTool, Enums as csToolsEnums } from '@cornerstonejs/tools';
 import { Types as OhifTypes, utils } from '@ohif/core';
-import { eventTarget, triggerEvent, utilities } from '@cornerstonejs/core';
+import { eventTarget, triggerEvent, utilities, metaData } from '@cornerstonejs/core';
+import { adaptersSR } from '@cornerstonejs/adapters';
 import getInstanceByImageId from './getInstanceByImageId';
 import { setShowPercentage } from './PleuraBlinePercentage';
+import buildLUSToolState from './sr/buildLUSToolState';
+
+const { MeasurementReport } = adaptersSR.Cornerstone3D;
 
 const { downloadBlob } = utils;
 
@@ -15,8 +19,10 @@ const { transformWorldToIndex } = utilities;
  */
 function commandsModule({
   servicesManager,
+  commandsManager,
+  extensionManager,
 }: OhifTypes.Extensions.ExtensionParams): OhifTypes.Extensions.CommandsModule {
-  const { viewportGridService, toolGroupService, cornerstoneViewportService } =
+  const { viewportGridService, toolGroupService, cornerstoneViewportService, uiNotificationService } =
     servicesManager.services as AppTypes.Services;
 
   const actions = {
@@ -280,6 +286,82 @@ function commandsModule({
         filename: `ultrasound_annotations_${new Date().toISOString().slice(0, 10)}.json`,
       });
     },
+    /**
+     * Saves pleura and B-line annotations as a DICOM SR to the active data source.
+     */
+    saveLUSReportToDatastore: async ({ imageIds = [] }) => {
+      const activeViewportId = viewportGridService.getActiveViewportId();
+      const viewport = cornerstoneViewportService.getCornerstoneViewport(activeViewportId);
+
+      if (!viewport) {
+        uiNotificationService.show({
+          title: 'Save SR',
+          message: 'No active viewport',
+          type: 'error',
+        });
+        return;
+      }
+
+      const filterImageIds = (imageId: string) => {
+        if (imageIds.length === 0) {
+          return true;
+        }
+        return imageIds.includes(imageId);
+      };
+
+      const toolState = buildLUSToolState(viewport, filterImageIds);
+
+      if (!toolState) {
+        uiNotificationService.show({
+          title: 'Save SR',
+          message: 'No annotations to save',
+          type: 'error',
+        });
+        return;
+      }
+
+      const activeDataSource = extensionManager.getActiveDataSource()?.[0];
+      const dataSourceName = activeDataSource?.sourceName || 'dicomweb';
+
+      const storeFn = commandsManager.runCommand('createStoreFunction', {
+        dataSource: dataSourceName,
+        defaultFileName: 'lus-annotations-sr.dcm',
+      });
+
+      if (!storeFn) {
+        uiNotificationService.show({
+          title: 'Save SR',
+          message: 'DICOM store is not configured for the active data source',
+          type: 'error',
+        });
+        return;
+      }
+
+      try {
+        const naturalizedReport = MeasurementReport.generateReport(toolState, metaData, {
+          SeriesDescription: 'LUS Pleura B-line Annotations',
+        });
+
+        const { ContentSequence } = naturalizedReport;
+        if (!ContentSequence?.[4]?.ContentSequence?.length) {
+          throw new Error('Invalid report, no content');
+        }
+
+        await storeFn(naturalizedReport);
+
+        uiNotificationService.show({
+          title: 'Save SR',
+          message: 'Structured report saved successfully',
+          type: 'success',
+        });
+      } catch (error) {
+        uiNotificationService.show({
+          title: 'Save SR',
+          message: error.message || 'Failed to save structured report',
+          type: 'error',
+        });
+      }
+    },
   };
 
   const definitions = {
@@ -315,6 +397,9 @@ function commandsModule({
     },
     downloadJSON: {
       commandFn: actions.downloadUSPleuraBLineAnnotationsJSON,
+    },
+    saveLUSReportToDatastore: {
+      commandFn: actions.saveLUSReportToDatastore,
     },
     switchUSAnnotationToPleuraLine: {
       commandFn: actions.switchUSPleuraBLineAnnotationToPleuraLine,
