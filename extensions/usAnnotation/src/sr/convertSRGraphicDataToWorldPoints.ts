@@ -1,172 +1,82 @@
 import { metaData, utilities, type Types } from '@cornerstonejs/core';
 
-const { transformIndexToWorld, imageToWorldCoords } = utilities;
+const { imageToWorldCoords } = utilities;
 
 type GraphicQuad = [number, number, number, number];
-type IndexPoint3 = [number, number, number];
-type ImagePixelPair = [number, number];
 
-type ConversionCandidate = {
-  name: string;
-  p1: Types.Point3;
-  p2: Types.Point3;
-};
-
-function getInstanceMeta(imageId: string) {
-  return metaData.get('instance', imageId) as {
-    PixelSpacing?: number[];
-    Rows?: number;
-    Columns?: number;
-    rows?: number;
-    columns?: number;
+function getPixelSpacing(imageId: string): [number, number] {
+  const instance = metaData.get('instance', imageId) as { PixelSpacing?: number[] };
+  const imagePlane = metaData.get('imagePlaneModule', imageId) as {
+    rowPixelSpacing?: number;
+    columnPixelSpacing?: number;
   };
+
+  const rowSpacing = Number(
+    instance?.PixelSpacing?.[0] ?? imagePlane?.rowPixelSpacing ?? 1
+  );
+  const colSpacing = Number(
+    instance?.PixelSpacing?.[1] ?? imagePlane?.columnPixelSpacing ?? rowSpacing
+  );
+
+  return [rowSpacing, colSpacing];
 }
 
 /**
- * create_LUS_SR stores GraphicData as coord / PixelSpacing where coord is the
- * same index space OHIF uses in JSON export (transformWorldToIndex).
+ * SRs from create_LUS_SR store GraphicData as index_coord / PixelSpacing.
+ * OHIF-saved SRs store true DICOM pixel coords (via worldToImageCoords).
  */
-function buildIndexCandidates(
-  graphicData: GraphicQuad,
-  pixelSpacing?: number[]
-): { p1: IndexPoint3; p2: IndexPoint3; name: string }[] {
-  const [g0, g1, g2, g3] = graphicData;
-  const rowSpacing = Number(pixelSpacing?.[0]) || 1;
-  const colSpacing = Number(pixelSpacing?.[1]) || rowSpacing;
-
-  return [
-    {
-      name: 'lus-inverse',
-      p1: [g0 * rowSpacing, g1 * colSpacing, 0],
-      p2: [g2 * rowSpacing, g3 * colSpacing, 0],
-    },
-    {
-      name: 'direct-index',
-      p1: [g0, g1, 0],
-      p2: [g2, g3, 0],
-    },
-    {
-      name: 'swap-index',
-      p1: [g1, g0, 0],
-      p2: [g3, g2, 0],
-    },
-    {
-      name: 'lus-inverse-swap',
-      p1: [g1 * colSpacing, g0 * rowSpacing, 0],
-      p2: [g3 * colSpacing, g2 * rowSpacing, 0],
-    },
-  ];
-}
-
-/** imageToWorldCoords expects [row, column] pixel indices. */
-function buildImagePixelCandidates(graphicData: GraphicQuad): { p1: ImagePixelPair; p2: ImagePixelPair; name: string }[] {
-  const [g0, g1, g2, g3] = graphicData;
-
-  return [
-    { name: 'image-row-col', p1: [g0, g1], p2: [g2, g3] },
-    { name: 'image-col-row', p1: [g1, g0], p2: [g3, g2] },
-  ];
-}
-
-function scoreWorldPoints(
-  viewport: Types.IStackViewport,
-  p1: Types.Point3,
-  p2: Types.Point3
-): number {
-  const c1 = viewport.worldToCanvas(p1);
-  const c2 = viewport.worldToCanvas(p2);
-
-  if (!c1 || !c2 || c1.some(v => !Number.isFinite(v)) || c2.some(v => !Number.isFinite(v))) {
-    return -1;
-  }
-
-  const width = viewport.canvas?.clientWidth || 1;
-  const height = viewport.canvas?.clientHeight || 1;
-  let score = 0;
-
-  for (const [x, y] of [c1, c2]) {
-    if (x >= -width * 0.15 && x <= width * 1.15 && y >= -height * 0.15 && y <= height * 1.15) {
-      score += 2;
-    }
-  }
-
-  const distance = Math.hypot(c2[0] - c1[0], c2[1] - c1[1]);
-  if (distance > 8) {
-    score += 2;
-  }
-  if (distance > 24) {
-    score += 1;
-  }
-
-  return score;
-}
-
-function pickBestCandidate(
-  candidates: Array<ConversionCandidate & { score: number }>
-): ConversionCandidate | null {
-  let best: (ConversionCandidate & { score: number }) | null = null;
-
-  for (const candidate of candidates) {
-    if (candidate.score > (best?.score ?? -1)) {
-      best = candidate;
-    }
-  }
-
-  return best && best.score >= 4 ? best : null;
+export function usesCreateLusSrGraphicEncoding(measurement: {
+  TrackingIdentifier?: string;
+}): boolean {
+  const trackingId = measurement.TrackingIdentifier || '';
+  return /^(pleura|bline)_f\d+_\d+$/i.test(trackingId);
 }
 
 /**
- * Converts SR SCOORD POLYLINE GraphicData to world points using the viewport's
- * imageData at the referenced frame. Tries several index/image pixel layouts and
- * picks the one that maps into the viewport canvas (same space as manual draw).
+ * Converts SR SCOORD POLYLINE GraphicData to world points using the same
+ * imageToWorldCoords path as DICOMSRDisplay / getRenderableData.
+ *
+ * For create_LUS_SR: undo the PixelSpacing division before imageToWorldCoords.
  */
 export default function convertSRGraphicDataToWorldPoints(
   graphicData: number[],
   imageId: string,
-  viewport: Types.IStackViewport
+  measurement: { TrackingIdentifier?: string }
 ): [Types.Point3, Types.Point3] | null {
-  if (!graphicData || graphicData.length < 4 || !viewport) {
+  if (!graphicData || graphicData.length < 4) {
     return null;
   }
 
-  const points = graphicData.slice(0, 4) as GraphicQuad;
-  const instance = getInstanceMeta(imageId);
-  const pixelSpacing = instance?.PixelSpacing;
-  const imageData = viewport.getImageData()?.imageData;
+  const [g0, g1, g2, g3] = graphicData.slice(0, 4) as GraphicQuad;
+  const [rowSpacing, colSpacing] = getPixelSpacing(imageId);
 
-  const candidates: (ConversionCandidate & { score: number })[] = [];
+  const scaleRow = usesCreateLusSrGraphicEncoding(measurement) ? rowSpacing : 1;
+  const scaleCol = usesCreateLusSrGraphicEncoding(measurement) ? colSpacing : 1;
 
-  if (imageData) {
-    for (const indexCandidate of buildIndexCandidates(points, pixelSpacing)) {
-      const p1 = transformIndexToWorld(imageData, indexCandidate.p1);
-      const p2 = transformIndexToWorld(imageData, indexCandidate.p2);
-      candidates.push({
-        name: indexCandidate.name,
-        p1,
-        p2,
-        score: scoreWorldPoints(viewport, p1, p2),
-      });
+  // create_LUS_SR: graphic = start_x/PixelSpacing[0], start_y/PixelSpacing[1]
+  // imageToWorldCoords expects [row, column] pixel indices
+  const row1 = g0 * scaleRow;
+  const col1 = g1 * scaleCol;
+  const row2 = g2 * scaleRow;
+  const col2 = g3 * scaleCol;
+
+  try {
+    const point1World = imageToWorldCoords(imageId, [row1, col1]);
+    const point2World = imageToWorldCoords(imageId, [row2, col2]);
+
+    if (!point1World || !point2World) {
+      return null;
     }
-  }
 
-  for (const pixelCandidate of buildImagePixelCandidates(points)) {
-    try {
-      const p1 = imageToWorldCoords(imageId, pixelCandidate.p1);
-      const p2 = imageToWorldCoords(imageId, pixelCandidate.p2);
-      if (!p1 || !p2) {
-        continue;
-      }
-      candidates.push({
-        name: pixelCandidate.name,
-        p1,
-        p2,
-        score: scoreWorldPoints(viewport, p1, p2),
-      });
-    } catch {
-      // imagePlaneModule may be missing until the frame is loaded in the viewport
-    }
+    return [point1World, point2World];
+  } catch {
+    return null;
   }
+}
 
-  const best = pickBestCandidate(candidates);
-  return best ? [best.p1, best.p2] : null;
+export function getFrameOfReferenceUID(imageId: string): string | undefined {
+  const imagePlaneModule = metaData.get('imagePlaneModule', imageId) as {
+    frameOfReferenceUID?: string;
+  };
+  return imagePlaneModule?.frameOfReferenceUID;
 }

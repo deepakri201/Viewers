@@ -1,9 +1,11 @@
 import { UltrasoundPleuraBLineTool, annotation, Enums as csToolsEnums } from '@cornerstonejs/tools';
+import { triggerAnnotationRender } from '@cornerstonejs/tools/utilities';
 import { cache, eventTarget, imageLoader, triggerEvent } from '@cornerstonejs/core';
 
 import classifyLUSMeasurementType from './classifyLUSMeasurementType';
-import convertSRGraphicDataToWorldPoints from './convertSRGraphicDataToWorldPoints';
-import scrollViewportToImageId from './scrollViewportToImageId';
+import convertSRGraphicDataToWorldPoints, {
+  getFrameOfReferenceUID,
+} from './convertSRGraphicDataToWorldPoints';
 import {
   buildImageIdMap,
   findUSDisplaySetForMeasurements,
@@ -81,9 +83,10 @@ function createLUSAnnotation({
   imageId,
   annotationType,
   graphicData,
+  measurement,
   viewport,
 }) {
-  const worldPoints = convertSRGraphicDataToWorldPoints(graphicData, imageId, viewport);
+  const worldPoints = convertSRGraphicDataToWorldPoints(graphicData, imageId, measurement);
 
   if (!worldPoints) {
     return null;
@@ -91,6 +94,7 @@ function createLUSAnnotation({
 
   const [point1World, point2World] = worldPoints;
   const { viewUp, position: cameraPosition } = viewport.getCamera();
+  const frameOfReferenceUID = getFrameOfReferenceUID(imageId);
 
   return {
     highlighted: false,
@@ -99,6 +103,7 @@ function createLUSAnnotation({
       ...viewport.getViewReference({ points: [point1World] }),
       toolName: UltrasoundPleuraBLineTool.toolName,
       referencedImageId: imageId,
+      FrameOfReferenceUID: frameOfReferenceUID,
       viewUp,
       cameraPosition,
     },
@@ -177,7 +182,7 @@ export default async function hydrateLUSAnnotationsFromSR({
     return result;
   }
 
-  const { viewport } = viewportMatch;
+  const { viewportId, viewport } = viewportMatch;
   const imageIdMap = buildImageIdMap(dataSource, usDisplaySet);
 
   if (replaceExisting) {
@@ -198,7 +203,7 @@ export default async function hydrateLUSAnnotationsFromSR({
 
   await Promise.all([...imageIdsToLoad].map(imageId => ensureImageLoaded(imageId)));
 
-  const measurementsByImageId = new Map<string, typeof measurements>();
+  let lastAddedAnnotation = null;
 
   for (const measurement of measurements) {
     const annotationType = classifyLUSMeasurementType(measurement);
@@ -222,51 +227,33 @@ export default async function hydrateLUSAnnotationsFromSR({
       continue;
     }
 
-    if (!measurementsByImageId.has(imageId)) {
-      measurementsByImageId.set(imageId, []);
-    }
-    measurementsByImageId.get(imageId).push(measurement);
-  }
+    const newAnnotation = createLUSAnnotation({
+      imageId,
+      annotationType,
+      graphicData: coord.GraphicData,
+      measurement,
+      viewport,
+    });
 
-  for (const [imageId, frameMeasurements] of measurementsByImageId) {
-    const scrolled = await scrollViewportToImageId(viewport, imageId);
-    if (!scrolled) {
-      result.skipped += frameMeasurements.length;
-      result.errors.push(`Could not display frame for image ${imageId}`);
+    if (!newAnnotation) {
+      result.skipped += 1;
       continue;
     }
 
-    for (const measurement of frameMeasurements) {
-      const annotationType = classifyLUSMeasurementType(measurement);
-      const coord = measurement.coords?.[0];
-
-      const newAnnotation = createLUSAnnotation({
-        imageId,
-        annotationType,
-        graphicData: coord.GraphicData,
-        viewport,
-      });
-
-      if (!newAnnotation) {
-        result.skipped += 1;
-        continue;
-      }
-
-      addAnnotation(newAnnotation, viewport.element);
-      result.added += 1;
-    }
+    addAnnotation(newAnnotation, viewport.element);
+    lastAddedAnnotation = newAnnotation;
+    result.added += 1;
   }
 
   if (result.added > 0) {
-    triggerEvent(eventTarget, csToolsEnums.Events.ANNOTATION_MODIFIED, {
-      annotation: {
-        metadata: {
-          toolName: UltrasoundPleuraBLineTool.toolName,
-        },
-      },
-    });
-    viewportGridService.setActiveViewportId(viewportMatch.viewportId);
-    viewport.render();
+    viewportGridService.setActiveViewportId(viewportId);
+    triggerAnnotationRender(viewport.element);
+
+    if (lastAddedAnnotation) {
+      triggerEvent(eventTarget, csToolsEnums.Events.ANNOTATION_MODIFIED, {
+        annotation: lastAddedAnnotation,
+      });
+    }
   }
 
   return result;
