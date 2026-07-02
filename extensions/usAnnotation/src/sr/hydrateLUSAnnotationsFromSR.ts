@@ -1,7 +1,8 @@
 import { UltrasoundPleuraBLineTool, annotation, Enums as csToolsEnums } from '@cornerstonejs/tools';
-import { eventTarget, triggerEvent, utilities } from '@cornerstonejs/core';
+import { cache, eventTarget, imageLoader, triggerEvent } from '@cornerstonejs/core';
 
 import classifyLUSMeasurementType from './classifyLUSMeasurementType';
+import convertSRGraphicDataToWorldPoints from './convertSRGraphicDataToWorldPoints';
 import {
   buildImageIdMap,
   findUSDisplaySetForMeasurements,
@@ -11,8 +12,14 @@ import {
 const SR_SOP_CLASS_HANDLER_ID =
   '@ohif/extension-cornerstone-dicom-sr.sopClassHandlerModule.dicom-sr';
 
-const { imageToWorldCoords } = utilities;
 const { addAnnotation, getAnnotations, removeAnnotation } = annotation.state;
+
+async function ensureImageLoaded(imageId: string) {
+  if (cache.getImage(imageId)) {
+    return;
+  }
+  await imageLoader.loadAndCacheImage(imageId);
+}
 
 export type HydrateLUSFromSRResult = {
   added: number;
@@ -72,17 +79,17 @@ function clearExistingLUSAnnotations(element) {
 function createLUSAnnotation({
   imageId,
   annotationType,
-  pixelPoints,
+  graphicData,
+  measurement,
   viewport,
 }) {
-  const [x1, y1, x2, y2] = pixelPoints;
-  const point1World = imageToWorldCoords(imageId, [x1, y1]);
-  const point2World = imageToWorldCoords(imageId, [x2, y2]);
+  const worldPoints = convertSRGraphicDataToWorldPoints(graphicData, imageId, measurement);
 
-  if (!point1World || !point2World) {
+  if (!worldPoints) {
     return null;
   }
 
+  const [point1World, point2World] = worldPoints;
   const { viewUp, position: cameraPosition } = viewport.getCamera();
 
   return {
@@ -177,6 +184,20 @@ export default async function hydrateLUSAnnotationsFromSR({
     clearExistingLUSAnnotations(viewport.element);
   }
 
+  const imageIdsToLoad = new Set<string>();
+
+  for (const measurement of measurements) {
+    if (!classifyLUSMeasurementType(measurement)) {
+      continue;
+    }
+    const imageId = resolveMeasurementImageId(measurement, imageIdMap);
+    if (imageId) {
+      imageIdsToLoad.add(imageId);
+    }
+  }
+
+  await Promise.all([...imageIdsToLoad].map(imageId => ensureImageLoaded(imageId)));
+
   for (const measurement of measurements) {
     const annotationType = classifyLUSMeasurementType(measurement);
     if (!annotationType) {
@@ -199,11 +220,12 @@ export default async function hydrateLUSAnnotationsFromSR({
       continue;
     }
 
-    const pixelPoints = coord.GraphicData.slice(0, 4);
+    const graphicData = coord.GraphicData;
     const newAnnotation = createLUSAnnotation({
       imageId,
       annotationType,
-      pixelPoints,
+      graphicData,
+      measurement,
       viewport,
     });
 
