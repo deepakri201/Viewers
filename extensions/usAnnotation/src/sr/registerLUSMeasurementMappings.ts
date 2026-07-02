@@ -1,6 +1,5 @@
 import { MeasurementService } from '@ohif/core';
 import { Enums as CSExtensionEnums } from '@ohif/extension-cornerstone';
-import Length from '@ohif/extension-cornerstone/src/utils/measurementServiceMappings/Length';
 import { LUS_SR_TOOL_TYPES } from './lusSRConstants';
 
 const { CORNERSTONE_3D_TOOLS_SOURCE_NAME, CORNERSTONE_3D_TOOLS_SOURCE_VERSION } =
@@ -15,15 +14,16 @@ const LUS_LENGTH_MATCHING_CRITERIA = [
 
 /**
  * Registers measurement-service mappings for LUS SR adapter tool types so
- * isRehydratable() succeeds. Hydration remaps these to Length before display.
+ * isRehydratable() succeeds. Hydration remaps these to Length (via
+ * onBeforeSRHydration) before annotations are added, so these callbacks
+ * are not used during SR load.
  */
 export default function registerLUSMeasurementMappings({
   servicesManager,
 }: {
   servicesManager: AppTypes.ServicesManager;
 }) {
-  const { measurementService, displaySetService, cornerstoneViewportService, customizationService } =
-    servicesManager.services;
+  const { measurementService } = servicesManager.services;
 
   const source = measurementService.getSource(
     CORNERSTONE_3D_TOOLS_SOURCE_NAME,
@@ -34,22 +34,16 @@ export default function registerLUSMeasurementMappings({
     return;
   }
 
-  const toMeasurement = csToolsAnnotation =>
-    Length.toMeasurement(
-      csToolsAnnotation,
-      displaySetService,
-      cornerstoneViewportService,
-      () => MeasurementService.VALUE_TYPES.POLYLINE,
-      customizationService
-    );
+  const noopToAnnotation = () => null;
+  const noopToMeasurement = () => null;
 
   for (const toolType of [LUS_SR_TOOL_TYPES.PLEURA, LUS_SR_TOOL_TYPES.BLINE]) {
     measurementService.addMapping(
       source,
       toolType,
       LUS_LENGTH_MATCHING_CRITERIA,
-      Length.toAnnotation,
-      toMeasurement
+      noopToAnnotation,
+      noopToMeasurement
     );
   }
 }
