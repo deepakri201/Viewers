@@ -7,7 +7,6 @@ import { useTranslation } from 'react-i18next';
 import {
   /* Layout */
   PanelSection,
-  ScrollArea,
   /* Controls */
   Label,
   Button,
@@ -44,6 +43,7 @@ export default function USAnnotationPanel() {
   const [autoAdd, setAutoAdd] = useState(true);
   const [showPleuraPct, setShowPleuraPct] = useState(true);
   const [showOverlay, setShowOverlay] = useState(true);
+  const [showAnnotatedFramesList, setShowAnnotatedFramesList] = useState(true);
 
   // Data state variables
   const [annotatedFrames, setAnnotatedFrames] = useState<any[]>([]);
@@ -282,8 +282,8 @@ export default function USAnnotationPanel() {
   );
 
   const renderAnnotatedFrames = () => (
-    <div className="flex min-h-0 flex-1 flex-col">
-      <div className="mb-2 flex flex-wrap items-center gap-1 px-2 pt-2">
+    <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
+      <div className="mb-2 flex shrink-0 flex-wrap items-center gap-1 px-2 pt-2">
         <Button variant="ghost" size="sm" onClick={() => loadSR()}>
           <Icons.Upload className="h-4 w-4" />
           <span className="ml-1">{t('Load SR from cloud')}</span>
@@ -300,15 +300,22 @@ export default function USAnnotationPanel() {
           variant="ghost"
           size="sm"
           className="ml-auto"
-          onClick={() => setShowOverlayCommand(!showOverlay)}
+          title={
+            showAnnotatedFramesList ? t('Hide annotated frames list') : t('Show annotated frames list')
+          }
+          onClick={() => setShowAnnotatedFramesList(!showAnnotatedFramesList)}
         >
-          {showOverlay ? <Icons.Hide className="h-4 w-4" /> : <Icons.Show className="h-4 w-4" />}
+          {showAnnotatedFramesList ? (
+            <Icons.EyeVisible className="h-4 w-4" />
+          ) : (
+            <Icons.EyeHidden className="h-4 w-4" />
+          )}
         </Button>
       </div>
-      <ScrollArea className="min-h-0 flex-1">
-        <div className="w-full px-2 pb-2">
+      {showAnnotatedFramesList && (
+        <div className="ohif-scrollbar min-h-0 flex-1 overflow-y-auto px-2 pb-2">
           <table className="w-full border-collapse text-sm">
-            <thead>
+            <thead className="sticky top-0 z-10 bg-background">
               <tr className="text-muted-foreground border-input/50 border-b">
                 <th className="py-2 px-2 text-left font-normal">#</th>
                 <th className="py-2 px-2 text-left font-normal">{t('Frame')}</th>
@@ -333,7 +340,7 @@ export default function USAnnotationPanel() {
             </tbody>
           </table>
         </div>
-      </ScrollArea>
+      )}
     </div>
   );
 
@@ -411,13 +418,13 @@ export default function USAnnotationPanel() {
         {renderSectorAnnotations()}
       </PanelSection>
 
-      {/* Annotated frames — grows to fill remaining panel height */}
-      <PanelSection className="!flex-shrink flex min-h-0 flex-1 flex-col overflow-hidden">
-        <PanelSection.Header>{t('Annotated Frames')}</PanelSection.Header>
-        <PanelSection.Content className="flex min-h-0 flex-1 flex-col overflow-hidden">
-          {renderAnnotatedFrames()}
-        </PanelSection.Content>
-      </PanelSection>
+      {/* Annotated frames — flex child with bounded height so the list scrolls */}
+      <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
+        <div className="bg-popover text-muted-foreground my-0.5 flex h-7 shrink-0 items-center rounded py-2 pr-1 pl-2.5 text-[13px]">
+          {t('Annotated Frames')}
+        </div>
+        {renderAnnotatedFrames()}
+      </div>
     </div>
   );
 }

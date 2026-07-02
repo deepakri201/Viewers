@@ -16,5 +16,7 @@
   "Load SR from cloud": "Load SR from cloud",
   "Download JSON locally": "Download JSON locally",
   "Save SR to cloud": "Save SR to cloud",
+  "Show annotated frames list": "Show annotated frames list",
+  "Hide annotated frames list": "Hide annotated frames list",
   "Annotations": "Annotations"
 }
