@@ -305,6 +305,15 @@ function modeFactory({ modeConfiguration }) {
         .map(modality => modality.trim())
         .filter(Boolean);
 
+      if (modalities_list.length === 0) {
+        // GCP QIDO may omit ModalitiesInStudy unless requested via includefield.
+        return {
+          valid: true,
+          description:
+            'Study modalities unavailable from QIDO; US annotation workflow offered by default',
+        };
+      }
+
       const hasUltrasound = modalities_list.some(
         modality => modality.toUpperCase() === 'US'
       );
