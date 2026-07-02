@@ -86,7 +86,7 @@ function createLUSAnnotation({
   measurement,
   viewport,
 }) {
-  const worldPoints = convertSRGraphicDataToWorldPoints(graphicData, imageId, measurement);
+  const worldPoints = convertSRGraphicDataToWorldPoints(graphicData, imageId);
 
   if (!worldPoints) {
     return null;
