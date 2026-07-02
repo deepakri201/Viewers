@@ -3,6 +3,7 @@ import { cache, eventTarget, imageLoader, triggerEvent } from '@cornerstonejs/co
 
 import classifyLUSMeasurementType from './classifyLUSMeasurementType';
 import convertSRGraphicDataToWorldPoints from './convertSRGraphicDataToWorldPoints';
+import scrollViewportToImageId from './scrollViewportToImageId';
 import {
   buildImageIdMap,
   findUSDisplaySetForMeasurements,
@@ -80,10 +81,9 @@ function createLUSAnnotation({
   imageId,
   annotationType,
   graphicData,
-  measurement,
   viewport,
 }) {
-  const worldPoints = convertSRGraphicDataToWorldPoints(graphicData, imageId, measurement);
+  const worldPoints = convertSRGraphicDataToWorldPoints(graphicData, imageId, viewport);
 
   if (!worldPoints) {
     return null;
@@ -198,6 +198,8 @@ export default async function hydrateLUSAnnotationsFromSR({
 
   await Promise.all([...imageIdsToLoad].map(imageId => ensureImageLoaded(imageId)));
 
+  const measurementsByImageId = new Map<string, typeof measurements>();
+
   for (const measurement of measurements) {
     const annotationType = classifyLUSMeasurementType(measurement);
     if (!annotationType) {
@@ -220,22 +222,39 @@ export default async function hydrateLUSAnnotationsFromSR({
       continue;
     }
 
-    const graphicData = coord.GraphicData;
-    const newAnnotation = createLUSAnnotation({
-      imageId,
-      annotationType,
-      graphicData,
-      measurement,
-      viewport,
-    });
+    if (!measurementsByImageId.has(imageId)) {
+      measurementsByImageId.set(imageId, []);
+    }
+    measurementsByImageId.get(imageId).push(measurement);
+  }
 
-    if (!newAnnotation) {
-      result.skipped += 1;
+  for (const [imageId, frameMeasurements] of measurementsByImageId) {
+    const scrolled = await scrollViewportToImageId(viewport, imageId);
+    if (!scrolled) {
+      result.skipped += frameMeasurements.length;
+      result.errors.push(`Could not display frame for image ${imageId}`);
       continue;
     }
 
-    addAnnotation(newAnnotation, viewport.element);
-    result.added += 1;
+    for (const measurement of frameMeasurements) {
+      const annotationType = classifyLUSMeasurementType(measurement);
+      const coord = measurement.coords?.[0];
+
+      const newAnnotation = createLUSAnnotation({
+        imageId,
+        annotationType,
+        graphicData: coord.GraphicData,
+        viewport,
+      });
+
+      if (!newAnnotation) {
+        result.skipped += 1;
+        continue;
+      }
+
+      addAnnotation(newAnnotation, viewport.element);
+      result.added += 1;
+    }
   }
 
   if (result.added > 0) {
