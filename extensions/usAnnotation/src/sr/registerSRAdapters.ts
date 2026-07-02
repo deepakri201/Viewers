@@ -11,19 +11,31 @@ const { worldToImageCoords } = csUtilities;
 function createLUSLineAdapter(toolType: string, TID300Representation: typeof TID300Length) {
   class LUSLineAdapter extends BaseAdapter3D {
     static getMeasurementData(measurementGroup, sopInstanceUIDToImageIdMap, metadata) {
-      const { state, worldCoords, ReferencedFrameNumber } = MeasurementReport.getSetupMeasurementData(
-        measurementGroup,
-        sopInstanceUIDToImageIdMap,
-        metadata,
-        this.toolType
-      );
+      const { state, NUMGroup, worldCoords, referencedImageId, ReferencedFrameNumber } =
+        MeasurementReport.getSetupMeasurementData(
+          measurementGroup,
+          sopInstanceUIDToImageIdMap,
+          metadata,
+          this.toolType
+        );
+
+      const cachedStats = referencedImageId
+        ? {
+            [`imageId:${referencedImageId}`]: {
+              length: NUMGroup ? NUMGroup.MeasuredValueSequence.NumericValue : 0,
+              unit: NUMGroup?.MeasuredValueSequence?.MeasurementUnitsCodeSequence?.CodeValue,
+            },
+          }
+        : {};
 
       state.annotation.data = {
         ...state.annotation.data,
         handles: {
           ...state.annotation.data.handles,
-          points: worldCoords,
+          points: [worldCoords[0], worldCoords[1]],
+          activeHandleIndex: 0,
         },
+        cachedStats,
         frameNumber: ReferencedFrameNumber,
       };
 
