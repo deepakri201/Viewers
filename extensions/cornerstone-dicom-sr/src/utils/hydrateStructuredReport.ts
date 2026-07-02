@@ -107,7 +107,24 @@ export default function hydrateStructuredReport(
     // that measurements were added to the display set are the same order as
     // the measurementGroups in the instance.
     sopInstanceUIDToImageId,
-    metaData
+    metaData,
+    {
+      getToolClass: (measurementGroup, _dataset, adapterByToolType) => {
+        const contentSequence = Array.isArray(measurementGroup.ContentSequence)
+          ? measurementGroup.ContentSequence
+          : [measurementGroup.ContentSequence];
+        const trackingIdentifierGroup = contentSequence.find(
+          contentItem => contentItem.ConceptNameCodeSequence?.CodeMeaning === 'Tracking Identifier'
+        );
+        const trackingIdentifierValue = trackingIdentifierGroup?.TextValue;
+
+        return (
+          MeasurementReport.getAdapterForTrackingIdentifier(trackingIdentifierValue) ||
+          MeasurementReport.getAdapterForCodeType(measurementGroup) ||
+          adapterByToolType.get('Length')
+        );
+      },
+    }
   );
 
   const onBeforeSRHydration = customizationService.getCustomization('onBeforeSRHydration')?.value;

@@ -5,6 +5,7 @@ import { adaptersSR } from '@cornerstonejs/adapters';
 
 import addSRAnnotation from './utils/addSRAnnotation';
 import isRehydratable from './utils/isRehydratable';
+import linkCustomTrackingIdentifiersToLength from './utils/linkCustomTrackingIdentifiersToLength';
 import {
   SOPClassHandlerName,
   SOPClassHandlerId,
@@ -190,6 +191,8 @@ async function _load(
   for (const measurement of srDisplaySet.measurements) {
     measurement.predecessorImageId = predecessorImageId;
   }
+
+  linkCustomTrackingIdentifiersToLength(srDisplaySet.measurements);
 
   const mappings = measurementService.getSourceMappings(
     CORNERSTONE_3D_TOOLS_SOURCE_NAME,
@@ -683,6 +686,14 @@ function _processNonGeometricallyDefinedMeasurement(mergedContentSequence) {
       );
     }
   });
+
+  if (measurement.coords?.length > 0) {
+    const coord = measurement.coords[0];
+    measurement.graphicType = coord.GraphicType;
+    measurement.is3DMeasurement = coord.ValueType === 'SCOORD3D';
+    const pointLength = measurement.is3DMeasurement ? 3 : 2;
+    measurement.pointsLength = coord.GraphicData?.length / pointLength;
+  }
 
   return measurement;
 }

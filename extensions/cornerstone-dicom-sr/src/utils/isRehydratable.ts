@@ -32,10 +32,33 @@ export default function isRehydratable(displaySet, mappings) {
       continue;
     }
     const adapter = MeasurementReport.getAdapterForTrackingIdentifier(TrackingIdentifier);
-    const adapters = MeasurementReport.getAdaptersForTypes(graphicCode, graphicType, pointsLength);
-    const hydratable =
+
+    const coord = measurement.coords?.[0];
+    const resolvedGraphicType = graphicType || coord?.GraphicType;
+    const resolvedPointsLength =
+      pointsLength ||
+      (coord?.GraphicData
+        ? coord.GraphicData.length / (coord.ValueType === 'SCOORD3D' ? 3 : 2)
+        : undefined);
+
+    const adapters = MeasurementReport.getAdaptersForTypes(
+      graphicCode,
+      resolvedGraphicType,
+      resolvedPointsLength
+    );
+    let hydratable =
       (adapter && mappingDefinitions.has(adapter.toolType)) ||
-      (adapters && adapters.some(adapter => mappingDefinitions.has(adapter.toolType)));
+      (adapters && adapters.some(a => mappingDefinitions.has(a.toolType)));
+
+    // Custom external SR tracking IDs (e.g. pleura_f1_0) with POLYLINE geometry
+    if (
+      !hydratable &&
+      resolvedGraphicType === 'POLYLINE' &&
+      resolvedPointsLength === 2 &&
+      mappingDefinitions.has('Length')
+    ) {
+      hydratable = true;
+    }
 
     if (hydratable) {
       return true;
