@@ -77,10 +77,21 @@ export default function hydrateStructuredReport(
   const sopInstanceUIDToImageId = {};
 
   displaySet.measurements.forEach(measurement => {
-    const { ReferencedSOPInstanceUID, imageId, frameNumber = 1 } = measurement;
+    const referencedSOPSequence = measurement.coords?.[0]?.ReferencedSOPSequence;
+    let ReferencedSOPInstanceUID =
+      measurement.ReferencedSOPInstanceUID ||
+      referencedSOPSequence?.ReferencedSOPInstanceUID;
+    let frameNumber =
+      measurement.frameNumber || referencedSOPSequence?.ReferencedFrameNumber || 1;
+    const { imageId } = measurement;
+
+    if (!ReferencedSOPInstanceUID || !imageId) {
+      return;
+    }
+
     const key = `${ReferencedSOPInstanceUID}:${frameNumber}`;
 
-    if (imageId && !sopInstanceUIDToImageId[key]) {
+    if (!sopInstanceUIDToImageId[key]) {
       sopInstanceUIDToImageId[key] = imageId;
     }
   });

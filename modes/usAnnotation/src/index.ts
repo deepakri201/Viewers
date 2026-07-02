@@ -6,6 +6,7 @@ import { UltrasoundPleuraBLineTool } from '@cornerstonejs/tools';
 import { showPercentage } from '../../../extensions/usAnnotation/src/PleuraBlinePercentage';
 import { LUS_SR_CODING_VALUES } from '../../../extensions/usAnnotation/src/sr/lusSRConstants';
 import { remapLUSMeasurementsToLength } from '../../../extensions/usAnnotation/src/sr/remapLUSMeasurementsToLength';
+import setupAutoHydrateSR from '../../../extensions/usAnnotation/src/sr/setupAutoHydrateSR';
 
 const ohif = {
   layout: '@ohif/extension-default.layoutTemplateModule.viewerLayout',
@@ -275,6 +276,10 @@ function modeFactory({ modeConfiguration }) {
           ],
         },
         'mode'
+      );
+
+      _activatePanelTriggersSubscriptions.push(
+        ...setupAutoHydrateSR({ servicesManager, extensionManager, commandsManager })
       );
     },
     onModeExit: ({ servicesManager }: withAppTypes) => {
