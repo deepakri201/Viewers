@@ -7,12 +7,22 @@ type GraphicQuad = [number, number, number, number];
 /**
  * Converts SR SCOORD POLYLINE GraphicData to world points for UltrasoundPleuraBLineTool.
  *
- * Uses the same conversion as OHIF's SR overlay (`getRenderableData` / `scoordToWorld`):
- * pass GraphicData straight into `imageToWorldCoords`.
+ * Same conversion as OHIF's SR overlay (`getRenderableData` / `scoordToWorld`).
  *
- * create_LUS_SR writes GraphicData as JSON_coord / PixelSpacing (e.g. ~610, not ~163).
- * `imageToWorldCoords` already applies row/column pixel spacing internally, so multiplying
- * GraphicData by spacing again would double-apply spacing and shrink lines toward the origin.
+ * create_LUS_SR write path (Colab):
+ *   GraphicData = JSON_point / PixelSpacing        e.g. 163 / 0.263 ≈ 610
+ *
+ * Correct read path (spacing applied exactly once, inside imageToWorldCoords):
+ *   world = imageToWorldCoords(imageId, GraphicData)
+ *   world ≈ PixelSpacing × GraphicData ≈ JSON_point
+ *
+ * Wrong read path (what produced ~[43, 29] from JSON ~[163, 110]):
+ *   recovered = GraphicData × PixelSpacing         → back to 163, 110
+ *   world = imageToWorldCoords(imageId, recovered)
+ *   world ≈ PixelSpacing × JSON ≈ 0.263 × 163 ≈ 43
+ *
+ * Do NOT multiply GraphicData by PixelSpacing before imageToWorldCoords — that feeds
+ * JSON-scale numbers into a function that already multiplies by spacing.
  */
 export default function convertSRGraphicDataToWorldPoints(
   graphicData: number[],
