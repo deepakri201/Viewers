@@ -46,19 +46,9 @@ export default function isRehydratable(displaySet, mappings) {
       resolvedGraphicType,
       resolvedPointsLength
     );
-    let hydratable =
+    const hydratable =
       (adapter && mappingDefinitions.has(adapter.toolType)) ||
       (adapters && adapters.some(a => mappingDefinitions.has(a.toolType)));
-
-    // Custom external SR tracking IDs (e.g. pleura_f1_0) with POLYLINE geometry
-    if (
-      !hydratable &&
-      resolvedGraphicType === 'POLYLINE' &&
-      resolvedPointsLength === 2 &&
-      mappingDefinitions.has('Length')
-    ) {
-      hydratable = true;
-    }
 
     if (hydratable) {
       return true;

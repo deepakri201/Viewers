@@ -5,7 +5,6 @@ import { adaptersSR } from '@cornerstonejs/adapters';
 
 import addSRAnnotation from './utils/addSRAnnotation';
 import isRehydratable from './utils/isRehydratable';
-import linkCustomTrackingIdentifiersToLength from './utils/linkCustomTrackingIdentifiersToLength';
 import {
   SOPClassHandlerName,
   SOPClassHandlerId,
@@ -192,8 +191,6 @@ async function _load(
     measurement.predecessorImageId = predecessorImageId;
   }
 
-  linkCustomTrackingIdentifiersToLength(srDisplaySet.measurements);
-
   const mappings = measurementService.getSourceMappings(
     CORNERSTONE_3D_TOOLS_SOURCE_NAME,
     CORNERSTONE_3D_TOOLS_SOURCE_VERSION
@@ -264,7 +261,7 @@ function _checkIfCanAddMeasurementsToDisplaySet(
 
   for (const imageId of imageIds) {
     const { SOPInstanceUID, frameNumber } = metadataProvider.getUIDsFromImageID(imageId);
-    const key = `${SOPInstanceUID}:${frameNumber || 1}`;
+    const key = `${SOPInstanceUID}:${Number(frameNumber) || 1}`;
     imageIdMap.set(key, imageId);
   }
 
@@ -309,7 +306,7 @@ function _checkIfCanAddMeasurementsToDisplaySet(
     }
 
     const { ReferencedSOPInstanceUID } = referencedSOPSequence;
-    const frame = referencedSOPSequence.ReferencedFrameNumber || 1;
+    const frame = Number(referencedSOPSequence.ReferencedFrameNumber) || 1;
     const key = `${ReferencedSOPInstanceUID}:${frame}`;
     const imageId = imageIdMap.get(key);
 

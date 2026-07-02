@@ -1,7 +1,5 @@
 import registerSRAdapters from './sr/registerSRAdapters';
-import registerLUSMeasurementMappings from './sr/registerLUSMeasurementMappings';
 
-export default function preRegistration({ servicesManager }: withAppTypes) {
+export default function preRegistration() {
   registerSRAdapters();
-  registerLUSMeasurementMappings({ servicesManager });
 }
