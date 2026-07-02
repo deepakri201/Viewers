@@ -127,6 +127,11 @@ export default function USAnnotationPanel() {
     commandsManager.runCommand('saveLUSReportToDatastore', { imageIds: imageIdsToObserve });
   };
 
+  const loadSR = async () => {
+    await commandsManager.runCommand('loadLUSAnnotationsFromSR', { replaceExisting: true });
+    updateAnnotatedFrames();
+  };
+
   /**
    * Adds the current image ID to the list of monitored image IDs
    * Only works when auto-add is disabled
@@ -296,6 +301,10 @@ export default function USAnnotationPanel() {
           <Button variant="ghost" onClick={() => saveSR()}>
             <Icons.Add className="h-5 w-5" />
             <span>{t('Save SR')}</span>
+          </Button>
+          <Button variant="ghost" onClick={() => loadSR()}>
+            <Icons.Upload className="h-5 w-5" />
+            <span>{t('Load SR')}</span>
           </Button>
           <Button variant="ghost" onClick={() => setShowOverlayCommand(!showOverlay)}>
             {showOverlay ? <Icons.Hide className="h-5 w-5" /> : <Icons.Show className="h-5 w-5" />}

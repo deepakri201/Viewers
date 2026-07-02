@@ -5,6 +5,7 @@ import { adaptersSR } from '@cornerstonejs/adapters';
 import getInstanceByImageId from './getInstanceByImageId';
 import { setShowPercentage } from './PleuraBlinePercentage';
 import buildLUSToolState from './sr/buildLUSToolState';
+import hydrateLUSAnnotationsFromSR from './sr/hydrateLUSAnnotationsFromSR';
 
 const { MeasurementReport } = adaptersSR.Cornerstone3D;
 
@@ -289,6 +290,44 @@ function commandsModule({
     /**
      * Saves pleura and B-line annotations as a DICOM SR to the active data source.
      */
+    /**
+     * Loads pleura/B-line annotations from a DICOM SR into the ultrasound tool
+     * on the US viewport (same representation as manual annotation).
+     */
+    loadLUSAnnotationsFromSR: async ({ displaySetInstanceUID, replaceExisting = true } = {}) => {
+      try {
+        const result = await hydrateLUSAnnotationsFromSR({
+          servicesManager,
+          extensionManager,
+          displaySetInstanceUID,
+          replaceExisting,
+        });
+
+        if (result.errors.length && result.added === 0) {
+          uiNotificationService.show({
+            title: 'Load SR',
+            message: result.errors[0],
+            type: 'error',
+          });
+          return result;
+        }
+
+        const skippedText = result.skipped ? ` (${result.skipped} skipped)` : '';
+        uiNotificationService.show({
+          title: 'Load SR',
+          message: `Loaded ${result.added} annotation${result.added === 1 ? '' : 's'}${skippedText}`,
+          type: result.added > 0 ? 'success' : 'info',
+        });
+
+        return result;
+      } catch (error) {
+        uiNotificationService.show({
+          title: 'Load SR',
+          message: error.message || 'Failed to load structured report',
+          type: 'error',
+        });
+      }
+    },
     saveLUSReportToDatastore: async ({ imageIds = [] }) => {
       const activeViewportId = viewportGridService.getActiveViewportId();
       const viewport = cornerstoneViewportService.getCornerstoneViewport(activeViewportId);
@@ -400,6 +439,9 @@ function commandsModule({
     },
     saveLUSReportToDatastore: {
       commandFn: actions.saveLUSReportToDatastore,
+    },
+    loadLUSAnnotationsFromSR: {
+      commandFn: actions.loadLUSAnnotationsFromSR,
     },
     switchUSAnnotationToPleuraLine: {
       commandFn: actions.switchUSPleuraBLineAnnotationToPleuraLine,
