@@ -22,7 +22,7 @@ function createLUSLineAdapter(toolType: string, TID300Representation: typeof TID
       const cachedStats = referencedImageId
         ? {
             [`imageId:${referencedImageId}`]: {
-              length: NUMGroup ? NUMGroup.MeasuredValueSequence.NumericValue : 0,
+              length: NUMGroup?.MeasuredValueSequence?.NumericValue ?? 0,
               unit: NUMGroup?.MeasuredValueSequence?.MeasurementUnitsCodeSequence?.CodeValue,
             },
           }

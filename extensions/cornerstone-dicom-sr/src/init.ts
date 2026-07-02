@@ -14,6 +14,7 @@ import { Types } from '@ohif/core';
 
 import DICOMSRDisplayTool from './tools/DICOMSRDisplayTool';
 import addToolInstance from './utils/addToolInstance';
+import patchLengthAdapterForSCOORDOnly from './utils/patchLengthAdapterForSCOORDOnly';
 import toolNames from './tools/toolNames';
 
 /**
@@ -23,6 +24,8 @@ export default function init({
   configuration = {},
   servicesManager,
 }: Types.Extensions.ExtensionParams): void {
+  patchLengthAdapterForSCOORDOnly();
+
   addToolInstance(toolNames.DICOMSRDisplay, DICOMSRDisplayTool);
   addToolInstance(toolNames.SRLength, LengthTool);
   addToolInstance(toolNames.SRBidirectional, BidirectionalTool);

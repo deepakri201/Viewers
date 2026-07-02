@@ -3,6 +3,7 @@ import OHIF, { DicomMetadataStore } from '@ohif/core';
 import { vec3 } from 'gl-matrix';
 
 import getLabelFromDCMJSImportedToolData from './getLabelFromDCMJSImportedToolData';
+import patchLengthAdapterForSCOORDOnly from './patchLengthAdapterForSCOORDOnly';
 import { adaptersSR } from '@cornerstonejs/adapters';
 import { annotation as CsAnnotation, type Types as ToolTypes } from '@cornerstonejs/tools';
 import { Enums as CSExtensionEnums } from '@ohif/extension-cornerstone';
@@ -47,6 +48,8 @@ export default function hydrateStructuredReport(
   { servicesManager, extensionManager, commandsManager }: withAppTypes,
   displaySetInstanceUID
 ) {
+  patchLengthAdapterForSCOORDOnly();
+
   const dataSource = extensionManager.getActiveDataSource()[0];
   const { measurementService, displaySetService, customizationService } = servicesManager.services;
 
