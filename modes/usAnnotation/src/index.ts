@@ -337,7 +337,7 @@ function modeFactory({ modeConfiguration }) {
             props: {
               leftPanels: [tracked.thumbnailList],
               leftPanelResizable: true,
-              rightPanels: [usAnnotation.panel, cornerstone.segmentation, tracked.measurements],
+              rightPanels: [usAnnotation.panel, cornerstone.segmentation],
               rightPanelResizable: true,
               viewports: [
                 {

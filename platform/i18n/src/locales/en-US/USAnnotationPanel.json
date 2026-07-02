@@ -13,5 +13,8 @@
   "Pleura lines": "Pleura lines",
   "B-lines": "B-lines",
   "JSON": "JSON",
+  "Load SR from cloud": "Load SR from cloud",
+  "Download JSON locally": "Download JSON locally",
+  "Save SR to cloud": "Save SR to cloud",
   "Annotations": "Annotations"
 }

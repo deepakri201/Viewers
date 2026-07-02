@@ -282,52 +282,45 @@ export default function USAnnotationPanel() {
   );
 
   const renderAnnotatedFrames = () => (
-    <ScrollArea className="h-full">
-      <PanelSection.Content>
-        <div className="mb-4 flex items-center justify-between">
-          {/* <Button
-            variant="ghost"
-            size="sm"
-            className="text-blue-300"
-            disabled={autoAdd}
-            onClick={addCurrentImageId}
-          >
-            <Icons.Plus className="mr-2" /> Add current frame
-          </Button> */}
-          <Button variant="ghost" onClick={() => downloadJSON()}>
-            <Icons.Download className="h-5 w-5" />
-            <span>{t('JSON')}</span>
-          </Button>
-          <Button variant="ghost" onClick={() => saveSR()}>
-            <Icons.Add className="h-5 w-5" />
-            <span>{t('Save SR')}</span>
-          </Button>
-          <Button variant="ghost" onClick={() => loadSR()}>
-            <Icons.Upload className="h-5 w-5" />
-            <span>{t('Load SR')}</span>
-          </Button>
-          <Button variant="ghost" onClick={() => setShowOverlayCommand(!showOverlay)}>
-            {showOverlay ? <Icons.Hide className="h-5 w-5" /> : <Icons.Show className="h-5 w-5" />}
-          </Button>
-        </div>
-        <div className="w-full overflow-hidden">
+    <div className="flex min-h-0 flex-1 flex-col">
+      <div className="mb-2 flex flex-wrap items-center gap-1 px-2 pt-2">
+        <Button variant="ghost" size="sm" onClick={() => loadSR()}>
+          <Icons.Upload className="h-4 w-4" />
+          <span className="ml-1">{t('Load SR from cloud')}</span>
+        </Button>
+        <Button variant="ghost" size="sm" onClick={() => downloadJSON()}>
+          <Icons.Download className="h-4 w-4" />
+          <span className="ml-1">{t('Download JSON locally')}</span>
+        </Button>
+        <Button variant="ghost" size="sm" onClick={() => saveSR()}>
+          <Icons.Add className="h-4 w-4" />
+          <span className="ml-1">{t('Save SR to cloud')}</span>
+        </Button>
+        <Button
+          variant="ghost"
+          size="sm"
+          className="ml-auto"
+          onClick={() => setShowOverlayCommand(!showOverlay)}
+        >
+          {showOverlay ? <Icons.Hide className="h-4 w-4" /> : <Icons.Show className="h-4 w-4" />}
+        </Button>
+      </div>
+      <ScrollArea className="min-h-0 flex-1">
+        <div className="w-full px-2 pb-2">
           <table className="w-full border-collapse text-sm">
             <thead>
               <tr className="text-muted-foreground border-input/50 border-b">
-                <th></th>
+                <th className="py-2 px-2 text-left font-normal">#</th>
                 <th className="py-2 px-2 text-left font-normal">{t('Frame')}</th>
                 <th className="py-2 px-2 text-center font-normal">{t('Pleura lines')}</th>
                 <th className="py-2 px-2 text-center font-normal">{t('B-lines')}</th>
-                <th className="w-10"></th>
               </tr>
             </thead>
             <tbody>
               {annotatedFrames.map(item => (
                 <tr
-                  key={item.frame}
-                  className={`border-input/50 border-b ${
-                    item.frame === 5 ? 'bg-cyan-800 bg-opacity-30' : ''
-                  }`}
+                  key={item.imageId}
+                  className="border-input/50 hover:bg-accent/50 border-b"
                   onClick={() => handleRowClick(item)}
                   style={{ cursor: 'pointer' }}
                 >
@@ -335,25 +328,13 @@ export default function USAnnotationPanel() {
                   <td className="py-2 px-2">{item.frame + 1}</td>
                   <td className="py-2 px-2 text-center">{item.pleura}</td>
                   <td className="py-2 px-2 text-center">{item.bLine}</td>
-                  <td className="py-2 px-2 text-right">
-                    {item.frame === 5 && (
-                      <div className="flex items-center justify-end">
-                        <Button variant="ghost" className="p-0">
-                          <Icons.EyeVisible />
-                        </Button>
-                        <Button variant="ghost" className="ml-2 p-0">
-                          <Icons.More />
-                        </Button>
-                      </div>
-                    )}
-                  </td>
                 </tr>
               ))}
             </tbody>
           </table>
         </div>
-      </PanelSection.Content>
-    </ScrollArea>
+      </ScrollArea>
+    </div>
   );
 
   const updateAnnotatedFrames = () => {
@@ -373,10 +354,13 @@ export default function USAnnotationPanel() {
       return;
     }
     const keys = Array.from(mapping.keys());
-    const updatedFrames = keys.map((key, index) => {
-      const { pleura, bLine, frame } = mapping.get(key) || { pleura: 0, bLine: 0, frame: 0 };
-      return { imageId: key, index: index + 1, frame, pleura, bLine };
-    });
+    const updatedFrames = keys
+      .map((key, index) => {
+        const { pleura, bLine, frame } = mapping.get(key) || { pleura: 0, bLine: 0, frame: 0 };
+        return { imageId: key, index: index + 1, frame, pleura, bLine };
+      })
+      .sort((a, b) => a.frame - b.frame)
+      .map((item, index) => ({ ...item, index: index + 1 }));
     setAnnotatedFrames(updatedFrames);
   };
   /**
@@ -412,7 +396,7 @@ export default function USAnnotationPanel() {
    *  🖼  Final Render                                      */
   return (
     <div
-      className="text-foreground h-full bg-background"
+      className="text-foreground flex h-full min-h-0 flex-col bg-background"
       style={{ minWidth: 240, maxWidth: 480, width: '100%' }}
     >
       {/* Workflow */}
@@ -421,22 +405,18 @@ export default function USAnnotationPanel() {
         {renderWorkflowToggles()}
       </PanelSection>
 
-      {/* Progress
-      <PanelSection>
-        <SectionHeader title="Workflow Progress" actionLabel="Source Folder" />
-        {renderWorkflowProgress()}
-      </PanelSection> */}
-
       {/* Annotations */}
       <PanelSection>
         <PanelSection.Header>{t('Annotations')}</PanelSection.Header>
         {renderSectorAnnotations()}
       </PanelSection>
 
-      {/* Annotated frames */}
-      <PanelSection className="flex-1">
+      {/* Annotated frames — grows to fill remaining panel height */}
+      <PanelSection className="!flex-shrink flex min-h-0 flex-1 flex-col overflow-hidden">
         <PanelSection.Header>{t('Annotated Frames')}</PanelSection.Header>
-        {renderAnnotatedFrames()}
+        <PanelSection.Content className="flex min-h-0 flex-1 flex-col overflow-hidden">
+          {renderAnnotatedFrames()}
+        </PanelSection.Content>
       </PanelSection>
     </div>
   );
